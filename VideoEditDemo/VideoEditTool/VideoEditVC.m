@@ -7,7 +7,7 @@
 //
 #define SCREEN_WIDTH [UIScreen mainScreen].bounds.size.width
 #define SCREEN_HEIGHT [UIScreen mainScreen].bounds.size.height
-#define EDGE_EXTENSION_FOR_THUMB 30
+#define EDGE_EXTENSION_FOR_THUMB 20
 
 #import "VideoEditVC.h"
 #import "DragEditView.h"
@@ -44,6 +44,7 @@
 @property (nonatomic, assign) CGFloat   linePositionX;  // 播放条的位置
 @property (nonatomic, assign) CGFloat   boderX;         // 编辑框边线X
 @property (nonatomic, assign) CGFloat   boderWidth;     // 编辑框边线长度
+@property (nonatomic, assign) CGFloat   touchPointX;     // 编辑视图区域外触点
 @property (nonatomic, assign) BOOL      isEdited;       // YES：编辑完成
 
 @end
@@ -75,6 +76,7 @@
 - (void)invalidatePlayer{
     [self stopTimer];
     [self.player pause];
+    [self.player removeObserver:self forKeyPath:@"timeControlStatus"];
     [self.playItem removeObserver:self forKeyPath:@"status"];
 }
 
@@ -107,11 +109,11 @@
     
     // 添加左右编辑框拖动条
     leftDragView = [[DragEditView alloc] initWithFrame:CGRectMake(-(SCREEN_WIDTH-50), 0, SCREEN_WIDTH, 50) Left:YES];
-    leftDragView.hitTestEdgeInsets = UIEdgeInsetsMake(0, 0, 0, -(EDGE_EXTENSION_FOR_THUMB));
+    leftDragView.hitTestEdgeInsets = UIEdgeInsetsMake(0, -(EDGE_EXTENSION_FOR_THUMB), 0, -(EDGE_EXTENSION_FOR_THUMB));
     [bottomView addSubview:leftDragView];
     
     rightDragView = [[DragEditView alloc] initWithFrame:CGRectMake((SCREEN_WIDTH-50), 0, SCREEN_WIDTH, 50) Left:NO];
-    rightDragView.hitTestEdgeInsets = UIEdgeInsetsMake(0, -(EDGE_EXTENSION_FOR_THUMB), 0, 0);
+    rightDragView.hitTestEdgeInsets = UIEdgeInsetsMake(0, -(EDGE_EXTENSION_FOR_THUMB), 0, -(EDGE_EXTENSION_FOR_THUMB));
     [bottomView addSubview:rightDragView];
     
     UIPanGestureRecognizer *panGestureRecognizer = [[UIPanGestureRecognizer alloc] initWithTarget:self action:@selector(moveOverlayView:)];
@@ -137,18 +139,19 @@
     self.IMG_Width = (SCREEN_WIDTH-100)/10;
 }
 
-#pragma mark 编辑区域拖动
+#pragma mark 编辑区域手势拖动
 - (void)moveOverlayView:(UIPanGestureRecognizer *)gesture{
     
     switch (gesture.state) {
         case UIGestureRecognizerStateBegan:
         {
             [self stopTimer];
-            BOOL isRight =  [rightDragView pointInside:[gesture locationInView:rightDragView]];
-            BOOL isLeft  =  [leftDragView pointInside:[gesture locationInView:leftDragView]];
+            BOOL isRight =  [rightDragView pointInsideImgView:[gesture locationInView:rightDragView]];
+            BOOL isLeft  =  [leftDragView pointInsideImgView:[gesture locationInView:leftDragView]];
             _isDraggingRightOverlayView = NO;
             _isDraggingLeftOverlayView = NO;
             
+            self.touchPointX = [gesture locationInView:bottomView].x;
             if (isRight){
                 self.rightStartPoint = [gesture locationInView:bottomView];
                 _isDraggingRightOverlayView = YES;
@@ -182,6 +185,10 @@
                     bottomBorder.frame = CGRectMake(self.boderX+=deltaX/2, 50-2, self.boderWidth-=deltaX/2, 2);
                     self.startPointX = point.x;
                 }
+                CMTime startTime = CMTimeMakeWithSeconds((point.x+editScrollView.contentOffset.x)/self.IMG_Width, self.player.currentTime.timescale);
+                
+                // 只有视频播放的时候才能够快进和快退1秒以内
+                [self.player seekToTime:startTime toleranceBefore:kCMTimeZero toleranceAfter:kCMTimeZero];
             }
             else if (_isDraggingRightOverlayView){ // Right
                 CGFloat deltaX = point.x - self.rightStartPoint.x;
@@ -197,12 +204,21 @@
                     bottomBorder.frame = CGRectMake(self.boderX, 50-2, self.boderWidth+=deltaX/2, 2);
                     self.endPointX = point.x;
                 }
+                CMTime startTime = CMTimeMakeWithSeconds((point.x+editScrollView.contentOffset.x)/self.IMG_Width, self.player.currentTime.timescale);
+                
+                // 只有视频播放的时候才能够快进和快退1秒以内
+                [self.player seekToTime:startTime toleranceBefore:kCMTimeZero toleranceAfter:kCMTimeZero];
             }
-
-            CMTime startTime = CMTimeMakeWithSeconds((point.x+editScrollView.contentOffset.x)/self.IMG_Width, self.player.currentTime.timescale);
-            
-            // 只有视频播放的时候才能够快进和快退1秒以内
-            [self.player seekToTime:startTime toleranceBefore:kCMTimeZero toleranceAfter:kCMTimeZero];
+            else { // 移动scrollView
+                CGFloat deltaX = point.x - self.touchPointX;
+                CGFloat newOffset = editScrollView.contentOffset.x + deltaX;
+                CGPoint currentOffSet = CGPointMake(newOffset, 0);
+                
+                if (currentOffSet.x >= 0 && currentOffSet.x <= (editScrollView.contentSize.width-SCREEN_WIDTH)) {
+                    editScrollView.contentOffset = CGPointMake(newOffset, 0);
+                    self.touchPointX = point.x;
+                }
+            }
             
         }
             break;
@@ -427,7 +443,6 @@
             NSLog(@"AVAssetImageGeneratorCancelled");
         }
     }];
-    [editScrollView setContentOffset:CGPointMake(50, 0)];
 }
 
 #pragma mark UIScrollViewDelegate
@@ -440,11 +455,25 @@
 }
 
 - (void)scrollViewDidScroll:(UIScrollView *)scrollView{
-    CGFloat offsetX = scrollView.contentOffset.x;
+    [self letScrollViewScrollAndResetPlayerStartTime];
+    // 视频暂停时可通过  AVPlayerItem 的API - (void)stepByCount:(NSInteger)stepCount; 滑动，目前未找到step的具体大小 官方文档说的不清楚
+//    NSInteger step = offsetX/(50.0*self.framesArray.count)*72;
+//    NSLog(@"移动步数:%ld",step);
+    //    if ([self.playItem canStepForward] && step > 0) {
+    //        [self.playItem stepByCount:step];
+    //    }
+    //
+    //    if ([self.playItem canStepBackward] && step < 0) {
+    //         [self.playItem stepByCount:step];
+    //    }
+}
+
+#pragma mark scrollView滑动时设置
+-(void)letScrollViewScrollAndResetPlayerStartTime{
+    CGFloat offsetX = editScrollView.contentOffset.x;
     CMTime startTime;
     
     if (offsetX>=0) {
-        
         startTime = CMTimeMakeWithSeconds((offsetX+self.startPointX)/self.IMG_Width, self.player.currentTime.timescale);
         CGFloat duration = self.endTime-self.startTime;
         self.startTime = (offsetX+self.startPointX)/self.IMG_Width;
@@ -457,17 +486,6 @@
     
     // 只有视频播放的时候才能够快进和快退1秒以内
     [self.player seekToTime:startTime toleranceBefore:kCMTimeZero toleranceAfter:kCMTimeZero];
-    
-    // 视频暂停时可通过  AVPlayerItem 的API - (void)stepByCount:(NSInteger)stepCount; 滑动，目前未找到step的具体大小 官方文档说的不清楚
-//    NSInteger step = offsetX/(50.0*self.framesArray.count)*72;
-//    NSLog(@"移动步数:%ld",step);
-    //    if ([self.playItem canStepForward] && step > 0) {
-    //        [self.playItem stepByCount:step];
-    //    }
-    //
-    //    if ([self.playItem canStepBackward] && step < 0) {
-    //         [self.playItem stepByCount:step];
-    //    }
 }
 
 #pragma setMethod

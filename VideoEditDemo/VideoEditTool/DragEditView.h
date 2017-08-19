@@ -11,7 +11,11 @@
 @interface DragEditView : UIView
 
 - (instancetype)initWithFrame:(CGRect)frame Left:(BOOL)left;
+
 @property (assign, nonatomic) UIEdgeInsets hitTestEdgeInsets;
-- (BOOL)pointInside:(CGPoint)point;
+
+- (BOOL)pointInsideSelf:(CGPoint)point;
+
+- (BOOL)pointInsideImgView:(CGPoint)point;
 
 @end

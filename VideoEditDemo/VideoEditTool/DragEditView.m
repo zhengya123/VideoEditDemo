@@ -48,14 +48,18 @@
     [self addSubview:imgView];
 }
 
-- (BOOL)pointInside:(CGPoint)point withEvent:(UIEvent *)event
-{
-    return [self pointInside:point];
+- (BOOL)pointInside:(CGPoint)point withEvent:(UIEvent *)event{
+    return [self pointInsideSelf:point];
 }
 
-- (BOOL)pointInside:(CGPoint)point
-{
+- (BOOL)pointInsideSelf:(CGPoint)point{
     CGRect relativeFrame = self.bounds;
+    CGRect hitFrame = UIEdgeInsetsInsetRect(relativeFrame, _hitTestEdgeInsets);
+    return CGRectContainsPoint(hitFrame, point);
+}
+
+- (BOOL)pointInsideImgView:(CGPoint)point{
+    CGRect relativeFrame = imgView.frame;
     CGRect hitFrame = UIEdgeInsetsInsetRect(relativeFrame, _hitTestEdgeInsets);
     return CGRectContainsPoint(hitFrame, point);
 }
