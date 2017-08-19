@@ -397,10 +397,10 @@
 
 #pragma mark 读取解析视频帧
 - (void)analysisVideoFrames{
-    //3.1初始化asset对象
+    //初始化asset对象
     AVURLAsset *videoAsset = [[AVURLAsset alloc]initWithURL:self.videoUrl options:nil];
     
-    //3.2 获取总视频的长度 = 总帧数 / 每秒的帧数
+    // 获取总视频的长度 = 总帧数 / 每秒的帧数
     long videoSumTime = videoAsset.duration.value / videoAsset.duration.timescale;
     
     //4.创建AVAssetImageGenerator对象
@@ -410,7 +410,7 @@
     generator.requestedTimeToleranceBefore = kCMTimeZero;
     generator.requestedTimeToleranceAfter = kCMTimeZero;
     
-    //5. 添加需要帧数的时间集合
+    // 添加需要帧数的时间集合
     self.framesArray = [NSMutableArray array];
     for (int i = 0; i < videoSumTime; i++) {
         CMTime time = CMTimeMake(i *videoAsset.duration.timescale , videoAsset.duration.timescale);
