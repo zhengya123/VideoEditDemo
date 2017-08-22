@@ -211,7 +211,7 @@
             }
             else { // 移动scrollView
                 CGFloat deltaX = point.x - self.touchPointX;
-                CGFloat newOffset = editScrollView.contentOffset.x + deltaX;
+                CGFloat newOffset = editScrollView.contentOffset.x-deltaX;
                 CGPoint currentOffSet = CGPointMake(newOffset, 0);
                 
                 if (currentOffSet.x >= 0 && currentOffSet.x <= (editScrollView.contentSize.width-SCREEN_WIDTH)) {
@@ -397,13 +397,13 @@
 
 #pragma mark 读取解析视频帧
 - (void)analysisVideoFrames{
-    //初始化asset对象
+    // 初始化asset对象
     AVURLAsset *videoAsset = [[AVURLAsset alloc]initWithURL:self.videoUrl options:nil];
     
     // 获取总视频的长度 = 总帧数 / 每秒的帧数
     long videoSumTime = videoAsset.duration.value / videoAsset.duration.timescale;
     
-    //4.创建AVAssetImageGenerator对象
+    // 创建AVAssetImageGenerator对象
     AVAssetImageGenerator *generator = [[AVAssetImageGenerator alloc]initWithAsset:videoAsset];
     generator.maximumSize = bottomView.frame.size;
     generator.appliesPreferredTrackTransform = YES;
