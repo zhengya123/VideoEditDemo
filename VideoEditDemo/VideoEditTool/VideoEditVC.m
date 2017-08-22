@@ -93,6 +93,7 @@
     [self.view addSubview:bottomView];
     editScrollView = [[UIScrollView alloc] initWithFrame:CGRectMake(0, 0, SCREEN_WIDTH, 50)];
     editScrollView.showsHorizontalScrollIndicator = NO;
+    editScrollView.bounces = NO;
     [bottomView addSubview:editScrollView];
     editScrollView.delegate = self;
     
