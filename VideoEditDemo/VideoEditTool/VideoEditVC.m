@@ -269,13 +269,14 @@
                 NSLog(@"NONE");
                 NSURL *movieUrl = [NSURL fileURLWithPath:self.tempVideoPath];
                 
+                __weak typeof(self) weakSelf = self;
                 dispatch_async(dispatch_get_main_queue(), ^{
                 UISaveVideoAtPathToSavedPhotosAlbum([movieUrl relativePath], self,@selector(video:didFinishSavingWithError:contextInfo:), nil);
-                    NSLog(@"编辑后的视频路径： %@",self.tempVideoPath);
+                    NSLog(@"编辑后的视频路径： %@",weakSelf.tempVideoPath);
                     
-                    self.isEdited = YES;
-                    [self invalidatePlayer];
-                    [self initPlayerWithVideoUrl:movieUrl];
+                    weakSelf.isEdited = YES;
+                    [weakSelf invalidatePlayer];
+                    [weakSelf initPlayerWithVideoUrl:movieUrl];
                     bottomView.hidden = YES;
                 });
 
@@ -422,16 +423,17 @@
     NSMutableArray *imgArray = [NSMutableArray array];
     
     __block long count = 0;
+    __weak typeof(self) weakSelf = self;
     [generator generateCGImagesAsynchronouslyForTimes:self.framesArray completionHandler:^(CMTime requestedTime, CGImageRef img, CMTime actualTime, AVAssetImageGeneratorResult result, NSError *error){
         
         if (result == AVAssetImageGeneratorSucceeded) {
             
             NSLog(@"%ld",count);
-            UIImageView *thumImgView = [[UIImageView alloc] initWithFrame:CGRectMake(50+count*self.IMG_Width, 0, self.IMG_Width, 70)];
+            UIImageView *thumImgView = [[UIImageView alloc] initWithFrame:CGRectMake(50+count*weakSelf.IMG_Width, 0, weakSelf.IMG_Width, 70)];
             thumImgView.image = [UIImage imageWithCGImage:img];
             dispatch_async(dispatch_get_main_queue(), ^{
                 [editScrollView addSubview:thumImgView];
-                editScrollView.contentSize = CGSizeMake(100+count*self.IMG_Width, 0);
+                editScrollView.contentSize = CGSizeMake(100+count*weakSelf.IMG_Width, 0);
             });
             count++;
         }
