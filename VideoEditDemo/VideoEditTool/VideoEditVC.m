@@ -75,8 +75,8 @@
 #pragma mark 释放引用
 - (void)invalidatePlayer{
     [self stopTimer];
-    [self.player pause];
     [self.player removeObserver:self forKeyPath:@"timeControlStatus"];
+    [self.player pause];
     [self.playItem removeObserver:self forKeyPath:@"status"];
 }
 
