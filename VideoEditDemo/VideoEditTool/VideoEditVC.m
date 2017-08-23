@@ -265,20 +265,24 @@
                 
                 NSLog(@"Export canceled");
                 break;
-            default:
-                NSLog(@"NONE");
-                NSURL *movieUrl = [NSURL fileURLWithPath:self.tempVideoPath];
                 
+            case AVAssetExportSessionStatusCompleted:{
+                NSLog(@"Export completed");
                 __weak typeof(self) weakSelf = self;
                 dispatch_async(dispatch_get_main_queue(), ^{
-                UISaveVideoAtPathToSavedPhotosAlbum([movieUrl relativePath], self,@selector(video:didFinishSavingWithError:contextInfo:), nil);
+                    UISaveVideoAtPathToSavedPhotosAlbum([furl relativePath], self,@selector(video:didFinishSavingWithError:contextInfo:), nil);
                     NSLog(@"编辑后的视频路径： %@",weakSelf.tempVideoPath);
                     
                     weakSelf.isEdited = YES;
                     [weakSelf invalidatePlayer];
-                    [weakSelf initPlayerWithVideoUrl:movieUrl];
+                    [weakSelf initPlayerWithVideoUrl:furl];
                     bottomView.hidden = YES;
                 });
+            }
+                break;
+                
+            default:
+                NSLog(@"Export other");
 
                 break;
         }
